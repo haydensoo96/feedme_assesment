@@ -1,95 +1,214 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+"use client";
+import React, { useState, useEffect } from "react";
 
 export default function Home() {
-  return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol>
-          <li>
-            Get started by editing <code>src/app/page.js</code>.
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [orders, setOrders] = useState([]);
+  const [completedOrders, setCompletedOrders] = useState([]);
+  const [cookBots, setCookBots] = useState(1);
+  const [botStatuses, setBotStatuses] = useState([false]);
 
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.secondary}
-          >
-            Read our docs
-          </a>
+  // Add a normal order
+  const addOrder = () => {
+    setOrders((prev) => [
+      ...prev,
+      { id: Date.now(), type: "normal", time: new Date(), status: "pending" },
+    ]);
+  };
+
+  // Add a VIP order
+  const addVipOrder = () => {
+    setOrders((prev) => [
+      { id: Date.now(), type: "vip", time: new Date(), status: "pending" },
+      ...prev.filter((order) => order.type === "vip"),
+      ...prev.filter((order) => order.type === "normal"),
+    ]);
+  };
+
+  // Add a cook bot
+  const addCookBot = () => {
+    setCookBots((prev) => prev + 1);
+    setBotStatuses((prev) => [...prev, false]);
+  };
+
+  // Decrease a cook bot
+  const decreaseCookBot = () => {
+    if (cookBots > 1) {
+      setCookBots((prev) => prev - 1);
+      setBotStatuses((prev) => prev.slice(0, -1));
+    }
+  };
+
+  useEffect(() => {
+    const intervals = botStatuses.map((_, index) =>
+      setInterval(() => {
+        setOrders((prevOrders) => {
+          const nextOrderIndex = prevOrders.findIndex(
+            (order) => order.status === "pending" && order.type === "vip"
+          );
+          const fallbackOrderIndex =
+            nextOrderIndex === -1
+              ? prevOrders.findIndex((order) => order.status === "pending")
+              : nextOrderIndex;
+
+          if (fallbackOrderIndex !== -1) {
+            const updatedOrders = [...prevOrders];
+            const orderToProcess = updatedOrders[fallbackOrderIndex];
+
+            if (orderToProcess && orderToProcess.status === "pending") {
+              updatedOrders[fallbackOrderIndex].status = "processing";
+
+              setBotStatuses((statuses) =>
+                statuses.map((status, i) => (i === index ? true : status))
+              );
+
+              return updatedOrders;
+            }
+          }
+
+          return prevOrders;
+        });
+
+        setTimeout(() => {
+          setOrders((currentOrders) => {
+            const orderToCompleteIndex = currentOrders.findIndex(
+              (order) => order.status === "processing"
+            );
+
+            if (orderToCompleteIndex !== -1) {
+              const completedOrder = currentOrders[orderToCompleteIndex];
+
+              setCompletedOrders((prevCompleted) => {
+                const isAlreadyCompleted = prevCompleted.some(
+                  (order) => order.id === completedOrder.id
+                );
+                if (!isAlreadyCompleted) {
+                  return [
+                    ...prevCompleted,
+                    { ...completedOrder, status: "completed" },
+                  ];
+                }
+                return prevCompleted; // To Avoid duplicates completed orders submittee
+              });
+
+              return currentOrders.filter((_, i) => i !== orderToCompleteIndex);
+            }
+
+            setBotStatuses((statuses) =>
+              statuses.map((status, i) => (i === index ? false : status))
+            );
+
+            return currentOrders;
+          });
+        }, 10000);
+      }, 10000)
+    );
+
+    return () => intervals.forEach((interval) => clearInterval(interval));
+  }, [botStatuses]);
+
+  return (
+    <div
+      style={{
+        fontFamily: "Arial, sans-serif",
+        padding: "20px",
+        maxWidth: "800px",
+        margin: "0 auto",
+        display: "flex",
+        gap: "20px",
+      }}
+    >
+      <div style={{ flex: 1 }}>
+        <h1
+          style={{ textAlign: "center", color: "#fffff", marginBottom: "2%" }}
+        >
+          Order Queue
+        </h1>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            marginBottom: "20px",
+          }}
+        >
+          <button onClick={addOrder} style={buttonStyle}>
+            Add Order
+          </button>
+          <button onClick={addVipOrder} style={buttonStyle}>
+            Add VIP Order
+          </button>
+          <button onClick={addCookBot} style={buttonStyle}>
+            Add Cook Bot
+          </button>
+          <button onClick={decreaseCookBot} style={buttonStyle}>
+            Decrease Cook Bot
+          </button>
         </div>
-      </main>
-      <footer className={styles.footer}>
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+        <h2 style={{ color: "#fffff" }}>Cook Bots: {cookBots}</h2>
+        <ul style={listStyle}>
+          {botStatuses.map((status, index) => (
+            <li key={index} style={listItemStyle}>
+              <strong>Bot {index + 1}:</strong> {status ? "Active" : "Idle"}
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div style={{ flex: 1 }}>
+        <h2 style={{ color: "#fffff" }}>Pending Orders:</h2>
+        <ul style={listStyle}>
+          {orders.map((order) => (
+            <li key={order.id} style={listItemStyle}>
+              <strong>
+                {order.type === "vip" ? "V" : "N"}
+                {order.id}
+              </strong>{" "}
+              - {order.time.toLocaleTimeString()} -{" "}
+              <span
+                style={{
+                  color: order.status === "processing" ? "green" : "orange",
+                }}
+              >
+                {order.status}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div style={{ flex: 1 }}>
+        <h2 style={{ color: "#fffff" }}>Completed Orders:</h2>
+        <ul style={listStyle}>
+          {completedOrders.map((order) => (
+            <li key={order.id} style={listItemStyle}>
+              <strong>
+                {order.type === "vip" ? "V" : "N"}
+                {order.id}
+              </strong>{" "}
+              - {order.time.toLocaleTimeString()} -{" "}
+              <span style={{ color: "blue" }}>{order.status}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   );
 }
+
+const buttonStyle = {
+  padding: "5px 5px",
+  backgroundColor: "#007BFF",
+  color: "#fff",
+  border: "none",
+  borderRadius: "5px",
+  cursor: "pointer",
+  fontSize: "14px",
+  margin: "0 5px",
+};
+
+const listStyle = {
+  listStyleType: "none",
+  padding: 0,
+};
+
+const listItemStyle = {
+  padding: "10px",
+  borderBottom: "1px solid #ddd",
+};
